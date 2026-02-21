@@ -22,8 +22,6 @@ const client = new Client({
 })
 
 const prefix = "."
-
-// تخزين بيانات الايمبد مؤقتاً لكل يوزر
 const embedSessions = new Map()
 
 client.on("messageCreate", async message => {
@@ -35,22 +33,18 @@ client.on("messageCreate", async message => {
     const filter = m => m.author.id === message.author.id
 
     try {
-        // =================
-        // .say
-        // =================
         if (command === "say") {
             const text = args.join(" ")
-            if (!text) return message.reply("اكتب رسالة بعد الأمر")
+            if (!text) return message.reply("Write a message after the command")
+            await message.delete().catch(() => null)
             await message.channel.send(text)
         }
 
-        // =================
-        // .embed
-        // =================
         if (command === "embed") {
             const fullText = args.join(" ")
             const parts = fullText.split("|")
-            if (parts.length < 2) return message.reply("الاستخدام:\n.embed عنوان | وصف")
+            if (parts.length < 2) return message.reply("Usage:\n.embed title | description")
+            await message.delete().catch(() => null)
 
             const title = parts[0].trim()
             const description = parts[1].trim()
@@ -64,46 +58,44 @@ client.on("messageCreate", async message => {
             await message.channel.send({ embeds: [embed] })
         }
 
-        // =================
-        // .embedwithbuttons - النظام الجديد
-        // =================
         if (command === "embedwithbuttons") {
-            // بيانات افتراضية للإعدادات
+            await message.delete().catch(() => null)
             const sessionData = {
                 userId: message.author.id,
                 channelId: message.channel.id,
                 title: "",
                 description: "",
                 color: "#7c4dff",
-                buttons: [],
-                buttonCount: 0
+                buttons: []
             }
             embedSessions.set(message.author.id, sessionData)
-
-            // عرض الـ Settings Menu زي الصورة
             await showEmbedSettings(message.channel, message.author.id, sessionData)
         }
 
-        // =================
-        // .editembed MESSAGE_ID
-        // =================
         if (command === "editembed") {
             const msgId = args[0]
-            if (!msgId) return message.reply("الاستخدام: .editembed MESSAGE_ID")
+            if (!msgId) return message.reply("Usage: .editembed MESSAGE_ID")
+            await message.delete().catch(() => null)
 
             const targetMessage = await message.channel.messages.fetch(msgId).catch(() => null)
-            if (!targetMessage) return message.reply("مش لاقي الرسالة أو حصل خطأ")
-            if (!targetMessage.embeds.length) return message.reply("الرسالة دي مفيهاش ايمبد")
+            if (!targetMessage) return message.channel.send("Message not found or an error occurred")
+            if (!targetMessage.embeds.length) return message.channel.send("This message has no embed")
 
-            await message.reply("اكتب العنوان الجديد")
-            let collected = await message.channel.awaitMessages({ filter, max: 1, time: 60000 }).catch(() => null)
-            if (!collected || !collected.size) return message.reply("انتهى الوقت")
+            const filter2 = m => m.author.id === message.author.id
+
+            const ask1 = await message.channel.send(`<@${message.author.id}> Enter the new title`)
+            let collected = await message.channel.awaitMessages({ filter: filter2, max: 1, time: 60000 }).catch(() => null)
+            if (!collected || !collected.size) return message.channel.send("Timed out")
             const newTitle = collected.first().content
+            await ask1.delete().catch(() => null)
+            await collected.first().delete().catch(() => null)
 
-            await message.channel.send("اكتب الوصف الجديد")
-            collected = await message.channel.awaitMessages({ filter, max: 1, time: 60000 }).catch(() => null)
-            if (!collected || !collected.size) return message.reply("انتهى الوقت")
+            const ask2 = await message.channel.send(`<@${message.author.id}> Enter the new description`)
+            collected = await message.channel.awaitMessages({ filter: filter2, max: 1, time: 60000 }).catch(() => null)
+            if (!collected || !collected.size) return message.channel.send("Timed out")
             const newDesc = collected.first().content
+            await ask2.delete().catch(() => null)
+            await collected.first().delete().catch(() => null)
 
             const newEmbed = new EmbedBuilder()
                 .setTitle(newTitle)
@@ -112,16 +104,13 @@ client.on("messageCreate", async message => {
                 .setTimestamp()
 
             await targetMessage.edit({ embeds: [newEmbed] })
-            message.reply("تم التعديل ✅")
         }
 
-        // =================
-        // .help
-        // =================
         if (command === "help") {
+            await message.delete().catch(() => null)
             const embed = new EmbedBuilder()
-                .setTitle("📜 قائمة الأوامر - SpectraX Bot")
-                .setDescription("اضغط على أي زر لمعرفة تفاصيل الأمر")
+                .setTitle("📜 Commands List - SpectraX Bot")
+                .setDescription("Click any button to see command details")
                 .setColor("#7c4dff")
 
             const row = new ActionRowBuilder()
@@ -137,118 +126,92 @@ client.on("messageCreate", async message => {
 
     } catch (err) {
         console.error(err)
-        message.reply("حصل خطأ داخلي ⚠️")
+        message.channel.send("Internal error occurred ⚠️")
     }
 })
 
-// =================
-// دالة عرض الإعدادات زي الصورة
-// =================
 async function showEmbedSettings(channel, userId, data) {
     const embed = new EmbedBuilder()
-        .setTitle("⚙️ إعدادات الإيمبد")
-        .setDescription("من هنا تقدر تغير إعدادات الإيمبد اللي هتعمله!")
+        .setTitle("⚙️ Embed Settings")
+        .setDescription("Change your embed settings from here!")
         .addFields(
-            { name: "📝 العنوان", value: data.title || "لم يتم التحديد", inline: true },
-            { name: "📄 الوصف", value: data.description || "لم يتم التحديد", inline: true },
-            { name: "🎨 اللون", value: data.color, inline: true },
-            { name: "🔘 عدد الأزرار", value: data.buttons.length > 0 ? `${data.buttons.length} أزرار` : "لا يوجد", inline: true }
+            { name: "📝 Title", value: data.title || "Not set", inline: true },
+            { name: "📄 Description", value: data.description || "Not set", inline: true },
+            { name: "🎨 Color", value: data.color, inline: true },
+            { name: "🔘 Buttons", value: data.buttons.length > 0 ? `${data.buttons.length} button(s)` : "None", inline: true }
         )
         .setColor(data.color)
         .setTimestamp()
 
-    // Select Menu لاختيار الإعداد
     const selectRow = new ActionRowBuilder()
         .addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId(`ewb_select_${userId}`)
-                .setPlaceholder("اختار الإعداد اللي تريد تغييره!")
+                .setPlaceholder("Select a setting to change!")
                 .addOptions([
-                    {
-                        label: "📝 تغيير العنوان",
-                        description: "اكتب عنوان الإيمبد",
-                        value: "set_title"
-                    },
-                    {
-                        label: "📄 تغيير الوصف",
-                        description: "اكتب وصف الإيمبد",
-                        value: "set_description"
-                    },
-                    {
-                        label: "🎨 تغيير اللون",
-                        description: "اختار لون للإيمبد",
-                        value: "set_color"
-                    },
-                    {
-                        label: "🔘 إضافة أزرار",
-                        description: "حدد عدد الأزرار وبياناتها",
-                        value: "set_buttons"
-                    }
+                    { label: "📝 Set Title", description: "Set the embed title", value: "set_title" },
+                    { label: "📄 Set Description", description: "Set the embed description", value: "set_description" },
+                    { label: "🎨 Set Color", description: "Set the embed color", value: "set_color" },
+                    { label: "🔘 Add Buttons", description: "Add link buttons to the embed", value: "set_buttons" }
                 ])
         )
 
-    // أزرار التأكيد والإلغاء
     const actionRow = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
                 .setCustomId(`ewb_send_${userId}`)
-                .setLabel("✅ إرسال الإيمبد")
+                .setLabel("✅ Send Embed")
                 .setStyle(ButtonStyle.Success),
             new ButtonBuilder()
                 .setCustomId(`ewb_cancel_${userId}`)
-                .setLabel("❌ إلغاء")
+                .setLabel("❌ Cancel")
                 .setStyle(ButtonStyle.Danger)
         )
 
     return await channel.send({
         embeds: [embed],
         components: [selectRow, actionRow],
-        content: `🔧 <@${userId}> - اختار الإعداد اللي تريد:`
+        content: `🔧 <@${userId}> - Select a setting to change:`
     })
 }
 
-// =================
-// Interactions Handler
-// =================
 client.on("interactionCreate", async interaction => {
 
-    // ===== أزرار الـ Help =====
     if (interaction.isButton()) {
         const helpButtons = ["say_btn", "embed_btn", "embedwithbuttons_btn", "editembed_btn"]
         if (helpButtons.includes(interaction.customId)) {
             let desc = ""
             switch (interaction.customId) {
                 case "say_btn":
-                    desc = "**.say <نص>**\n> يرسل الرسالة اللي انت هتكتبها بنفسك"
+                    desc = "**.say <text>**\n> Sends the message you write"
                     break
                 case "embed_btn":
-                    desc = "**.embed <عنوان> | <وصف>**\n> يرسل ايمبد انت هتعمله بنفسك"
+                    desc = "**.embed <title> | <description>**\n> Sends an embed you create"
                     break
                 case "embedwithbuttons_btn":
-                    desc = "**.embedwithbuttons**\n> هتشوف قائمة إعدادات وتختار كل حاجة من أوبشن منفصل"
+                    desc = "**.embedwithbuttons**\n> Opens a settings menu to build your embed with buttons"
                     break
                 case "editembed_btn":
-                    desc = "**.editembed <MESSAGE_ID>**\n> هتعدل ايمبد موجود بنفسك"
+                    desc = "**.editembed <MESSAGE_ID>**\n> Edits an existing embed"
                     break
             }
             return await interaction.reply({
-                embeds: [new EmbedBuilder().setTitle("شرح الأمر").setDescription(desc).setColor("#7c4dff")],
+                embeds: [new EmbedBuilder().setTitle("Command Info").setDescription(desc).setColor("#7c4dff")],
                 ephemeral: true
             })
         }
 
-        // ===== زر الإرسال =====
         if (interaction.customId.startsWith("ewb_send_")) {
             const userId = interaction.customId.replace("ewb_send_", "")
             if (interaction.user.id !== userId) {
-                return interaction.reply({ content: "مش أمرك ده!", ephemeral: true })
+                return interaction.reply({ content: "This is not your menu!", ephemeral: true })
             }
 
             const data = embedSessions.get(userId)
-            if (!data) return interaction.reply({ content: "انتهت الجلسة، ابدأ من جديد", ephemeral: true })
+            if (!data) return interaction.reply({ content: "Session expired, start again.", ephemeral: true })
 
             if (!data.title || !data.description) {
-                return interaction.reply({ content: "⚠️ لازم تحدد العنوان والوصف الأول!", ephemeral: true })
+                return interaction.reply({ content: "⚠️ You must set a title and description first!", ephemeral: true })
             }
 
             const finalEmbed = new EmbedBuilder()
@@ -271,46 +234,42 @@ client.on("interactionCreate", async interaction => {
                 components = [btnRow]
             }
 
-            const sentMsg = await interaction.channel.send({ embeds: [finalEmbed], components })
+            await interaction.channel.send({ embeds: [finalEmbed], components })
             embedSessions.delete(userId)
-
-            await interaction.update({ content: `✅ تم إرسال الإيمبد!\n**Message ID:** ${sentMsg.id}`, embeds: [], components: [] })
+            await interaction.update({ content: "", embeds: [], components: [] })
         }
 
-        // ===== زر الإلغاء =====
         if (interaction.customId.startsWith("ewb_cancel_")) {
             const userId = interaction.customId.replace("ewb_cancel_", "")
             if (interaction.user.id !== userId) {
-                return interaction.reply({ content: "مش أمرك ده!", ephemeral: true })
+                return interaction.reply({ content: "This is not your menu!", ephemeral: true })
             }
             embedSessions.delete(userId)
-            await interaction.update({ content: "❌ تم الإلغاء", embeds: [], components: [] })
+            await interaction.update({ content: "❌ Cancelled", embeds: [], components: [] })
         }
     }
 
-    // ===== Select Menu =====
     if (interaction.isStringSelectMenu()) {
         if (!interaction.customId.startsWith("ewb_select_")) return
 
         const userId = interaction.customId.replace("ewb_select_", "")
         if (interaction.user.id !== userId) {
-            return interaction.reply({ content: "مش أمرك ده!", ephemeral: true })
+            return interaction.reply({ content: "This is not your menu!", ephemeral: true })
         }
 
         const data = embedSessions.get(userId)
-        if (!data) return interaction.reply({ content: "انتهت الجلسة، ابدأ من جديد", ephemeral: true })
+        if (!data) return interaction.reply({ content: "Session expired, start again.", ephemeral: true })
 
         const selected = interaction.values[0]
 
-        // ===== تغيير العنوان =====
         if (selected === "set_title") {
             const modal = new ModalBuilder()
                 .setCustomId(`ewb_modal_title_${userId}`)
-                .setTitle("تغيير العنوان")
+                .setTitle("Set Title")
 
             const input = new TextInputBuilder()
                 .setCustomId("title_input")
-                .setLabel("اكتب عنوان الإيمبد")
+                .setLabel("Enter the embed title")
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true)
                 .setValue(data.title || "")
@@ -319,15 +278,14 @@ client.on("interactionCreate", async interaction => {
             return await interaction.showModal(modal)
         }
 
-        // ===== تغيير الوصف =====
         if (selected === "set_description") {
             const modal = new ModalBuilder()
                 .setCustomId(`ewb_modal_desc_${userId}`)
-                .setTitle("تغيير الوصف")
+                .setTitle("Set Description")
 
             const input = new TextInputBuilder()
                 .setCustomId("desc_input")
-                .setLabel("اكتب وصف الإيمبد")
+                .setLabel("Enter the embed description")
                 .setStyle(TextInputStyle.Paragraph)
                 .setRequired(true)
                 .setValue(data.description || "")
@@ -336,15 +294,14 @@ client.on("interactionCreate", async interaction => {
             return await interaction.showModal(modal)
         }
 
-        // ===== تغيير اللون =====
         if (selected === "set_color") {
             const modal = new ModalBuilder()
                 .setCustomId(`ewb_modal_color_${userId}`)
-                .setTitle("تغيير اللون")
+                .setTitle("Set Color")
 
             const input = new TextInputBuilder()
                 .setCustomId("color_input")
-                .setLabel("اكتب كود اللون (مثال: #ff0000)")
+                .setLabel("Enter color code (e.g. #ff0000)")
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true)
                 .setValue(data.color)
@@ -353,62 +310,58 @@ client.on("interactionCreate", async interaction => {
             return await interaction.showModal(modal)
         }
 
-        // ===== إضافة أزرار =====
         if (selected === "set_buttons") {
             const modal = new ModalBuilder()
                 .setCustomId(`ewb_modal_buttons_${userId}`)
-                .setTitle("إضافة أزرار")
+                .setTitle("Add Buttons")
 
             const input = new TextInputBuilder()
                 .setCustomId("buttons_input")
-                .setLabel("اكتب الأزرار (اسم|لينك) كل زر في سطر")
+                .setLabel("Enter buttons (label|url), one per line")
                 .setStyle(TextInputStyle.Paragraph)
                 .setRequired(true)
-                .setPlaceholder("زر أول|https://example.com\nزر تاني|https://example2.com")
+                .setPlaceholder("Button 1|https://example.com\nButton 2|https://example2.com")
 
             modal.addComponents(new ActionRowBuilder().addComponents(input))
             return await interaction.showModal(modal)
         }
     }
 
-    // ===== Modal Submits =====
     if (interaction.isModalSubmit()) {
         const customId = interaction.customId
 
         if (customId.startsWith("ewb_modal_")) {
             const parts = customId.split("_")
-            // ewb_modal_title_userId  => parts[3] هو userId
-            // بس userId ممكن يكون فيه _ فناخد كل اللي بعد ewb_modal_TYPE_
             const type = parts[2]
             const userId = parts.slice(3).join("_")
 
             if (interaction.user.id !== userId) {
-                return interaction.reply({ content: "مش أمرك ده!", ephemeral: true })
+                return interaction.reply({ content: "This is not your menu!", ephemeral: true })
             }
 
             const data = embedSessions.get(userId)
-            if (!data) return interaction.reply({ content: "انتهت الجلسة، ابدأ من جديد", ephemeral: true })
+            if (!data) return interaction.reply({ content: "Session expired, start again.", ephemeral: true })
 
             if (type === "title") {
                 data.title = interaction.fields.getTextInputValue("title_input")
                 embedSessions.set(userId, data)
-                await interaction.reply({ content: `✅ تم تحديث العنوان: **${data.title}**`, ephemeral: true })
+                await interaction.reply({ content: `✅ Title updated: **${data.title}**`, ephemeral: true })
             }
 
             if (type === "desc") {
                 data.description = interaction.fields.getTextInputValue("desc_input")
                 embedSessions.set(userId, data)
-                await interaction.reply({ content: `✅ تم تحديث الوصف!`, ephemeral: true })
+                await interaction.reply({ content: `✅ Description updated!`, ephemeral: true })
             }
 
             if (type === "color") {
                 const color = interaction.fields.getTextInputValue("color_input").trim()
                 if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
-                    return interaction.reply({ content: "⚠️ لون غلط! اكتب hex صح زي #ff0000", ephemeral: true })
+                    return interaction.reply({ content: "⚠️ Invalid color! Use hex format like #ff0000", ephemeral: true })
                 }
                 data.color = color
                 embedSessions.set(userId, data)
-                await interaction.reply({ content: `✅ تم تحديث اللون: **${data.color}**`, ephemeral: true })
+                await interaction.reply({ content: `✅ Color updated: **${data.color}**`, ephemeral: true })
             }
 
             if (type === "buttons") {
@@ -420,7 +373,7 @@ client.on("interactionCreate", async interaction => {
                 })
                 data.buttons = buttons
                 embedSessions.set(userId, data)
-                await interaction.reply({ content: `✅ تم إضافة ${buttons.length} أزرار!`, ephemeral: true })
+                await interaction.reply({ content: `✅ Added ${buttons.length} button(s)!`, ephemeral: true })
             }
         }
     }

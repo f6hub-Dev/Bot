@@ -839,14 +839,26 @@ async function showScriptPanelSettings(channel, userId, session) {
 
 async function showSetupPanel(channel, userId, session) {
     const data = loadData()
-    const embed = new EmbedBuilder()
+    
+    // تقسيم الكوماندز على embedين
+    const firstHalf = ALL_COMMANDS.slice(0, 25)
+    const secondHalf = ALL_COMMANDS.slice(25)
+
+    const embed1 = new EmbedBuilder()
         .setTitle("⚙️ Permissions Setup")
-        .setDescription("**Step 1:** Select the commands\n**Step 2:** Select roles\n**Step 3:** Save!")
-        .addFields(ALL_COMMANDS.map(cmd => ({
+        .setDescription("**Step 1:** Select commands\n**Step 2:** Select roles\n**Step 3:** Save!")
+        .addFields(firstHalf.map(cmd => ({
             name: `.${cmd}`,
             value: data.permissions[cmd]?.length > 0 ? data.permissions[cmd].map(id => `<@&${id}>`).join(", ") : "Everyone",
             inline: true
         }))).setColor("#5865F2").setTimestamp()
+
+    const embed2 = secondHalf.length > 0 ? new EmbedBuilder()
+        .addFields(secondHalf.map(cmd => ({
+            name: `.${cmd}`,
+            value: data.permissions[cmd]?.length > 0 ? data.permissions[cmd].map(id => `<@&${id}>`).join(", ") : "Everyone",
+            inline: true
+        }))).setColor("#5865F2") : null
 
     const cmdSelectRow = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
@@ -859,7 +871,9 @@ async function showSetupPanel(channel, userId, session) {
         new ButtonBuilder().setCustomId(`setup_save_${userId}`).setLabel("💾 Save & Close").setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`setup_reset_${userId}`).setLabel("🔄 Reset All").setStyle(ButtonStyle.Danger)
     )
-    return await channel.send({ embeds: [embed], components: [cmdSelectRow, actionRow], content: `🔧 <@${userId}> - Permissions Panel:` })
+
+    const embeds = embed2 ? [embed1, embed2] : [embed1]
+    return await channel.send({ embeds, components: [cmdSelectRow, actionRow], content: `🔧 <@${userId}> - Permissions Panel:` })
 }
 
 // =================

@@ -62,6 +62,18 @@ function parseDuration(str) {
 }
 
 // =================
+// All Commands List
+// =================
+const ALL_COMMANDS = [
+    "say", "embed", "embedwithbuttons", "editembed", "getscript",
+    "giveaway", "endgiveaway", "rerolllastgiveaway",
+    "poll", "endpoll",
+    "ban", "unban", "kick", "mute", "unmute", "warn", "warnings", "purge",
+    "showbanned", "showwarned", "showmuted",
+    "dmmember"
+]
+
+// =================
 // End Poll
 // =================
 async function endPoll(pollId) {
@@ -71,7 +83,6 @@ async function endPoll(pollId) {
 
     const pollChannel = await client.channels.fetch(poll.channelId).catch(() => null)
     if (!pollChannel) return
-
     const msg = await pollChannel.messages.fetch(poll.messageId).catch(() => null)
 
     const votes = poll.votes || {}
@@ -99,11 +110,7 @@ async function endPoll(pollId) {
         const disabledRows = msg.components.map(row =>
             new ActionRowBuilder().addComponents(
                 row.components.map(btn =>
-                    new ButtonBuilder()
-                        .setCustomId(btn.customId)
-                        .setLabel(btn.label)
-                        .setStyle(ButtonStyle.Secondary)
-                        .setDisabled(true)
+                    new ButtonBuilder().setCustomId(btn.customId).setLabel(btn.label).setStyle(ButtonStyle.Secondary).setDisabled(true)
                 )
             )
         )
@@ -114,15 +121,13 @@ async function endPoll(pollId) {
         .setTitle("📊 Poll Results")
         .setDescription(finalDesc)
         .addFields(
-            { name: "❓ Question", value: poll.question, inline: false },
+            { name: "❓ Question", value: poll.question },
             { name: "👥 Total Votes", value: `${total}`, inline: true },
             { name: "🏆 Winner", value: winners.length > 0 ? winners.join(", ") : "No votes", inline: true }
         )
-        .setColor("#ffd700")
-        .setTimestamp()
+        .setColor("#ffd700").setTimestamp()
 
     await pollChannel.send({ embeds: [resultEmbed] })
-
     data.polls[pollId].ended = true
     saveData(data)
 }
@@ -200,6 +205,9 @@ client.on("messageCreate", async message => {
 
     try {
 
+        // =================
+        // .say
+        // =================
         if (command === "say") {
             if (!hasPermission(message.member, "say")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -212,6 +220,9 @@ client.on("messageCreate", async message => {
             await message.channel.send(text)
         }
 
+        // =================
+        // .embed
+        // =================
         if (command === "embed") {
             if (!hasPermission(message.member, "embed")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -224,6 +235,9 @@ client.on("messageCreate", async message => {
             await message.channel.send({ embeds: [new EmbedBuilder().setTitle(parts[0].trim()).setDescription(parts[1].trim()).setColor("#5865F2").setTimestamp()] })
         }
 
+        // =================
+        // .embedwithbuttons
+        // =================
         if (command === "embedwithbuttons") {
             if (!hasPermission(message.member, "embedwithbuttons")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -236,6 +250,9 @@ client.on("messageCreate", async message => {
             await showEmbedSettings(message.channel, message.author.id, sessionData)
         }
 
+        // =================
+        // .editembed
+        // =================
         if (command === "editembed") {
             if (!hasPermission(message.member, "editembed")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -266,6 +283,9 @@ client.on("messageCreate", async message => {
             await targetMessage.edit({ embeds: [new EmbedBuilder().setTitle(newTitle).setDescription(newDesc).setColor("#ff4d6d").setTimestamp()] })
         }
 
+        // =================
+        // .getscript
+        // =================
         if (command === "getscript") {
             const data = loadData()
             if (!data.scriptButtons?.length) {
@@ -284,6 +304,9 @@ client.on("messageCreate", async message => {
             await message.channel.send({ embeds: [embed], components: rows })
         }
 
+        // =================
+        // .poll
+        // =================
         if (command === "poll") {
             if (!hasPermission(message.member, "poll")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -292,21 +315,18 @@ client.on("messageCreate", async message => {
             }
             await message.delete().catch(() => null)
             const triggerRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`poll_open_modal_${message.author.id}_${message.channel.id}`)
-                    .setLabel("📊 Create Poll")
-                    .setStyle(ButtonStyle.Primary)
+                new ButtonBuilder().setCustomId(`poll_open_modal_${message.author.id}_${message.channel.id}`).setLabel("📊 Create Poll").setStyle(ButtonStyle.Primary)
             )
-            const triggerMsg = await message.channel.send({
-                content: `<@${message.author.id}> Click to create your poll!`,
-                components: [triggerRow]
-            })
+            const triggerMsg = await message.channel.send({ content: `<@${message.author.id}> Click to create your poll!`, components: [triggerRow] })
             setTimeout(() => triggerMsg.delete().catch(() => null), 120000)
         }
 
+        // =================
+        // .endpoll
+        // =================
         if (command === "endpoll") {
-            if (message.author.id !== message.guild.ownerId) {
-                const m = await message.reply("❌ Only the server owner can use this!")
+            if (!hasPermission(message.member, "endpoll")) {
+                const m = await message.reply("❌ You don't have permission!")
                 setTimeout(() => m.delete().catch(() => null), 3000)
                 return await message.delete().catch(() => null)
             }
@@ -315,7 +335,6 @@ client.on("messageCreate", async message => {
             const guildPolls = Object.entries(data.polls)
                 .filter(([, p]) => p.guildId === message.guild.id && !p.ended)
                 .sort(([, a], [, b]) => b.createdAt - a.createdAt)
-
             if (guildPolls.length === 0) {
                 const m = await message.channel.send("❌ No active polls found!")
                 return setTimeout(() => m.delete().catch(() => null), 3000)
@@ -324,6 +343,86 @@ client.on("messageCreate", async message => {
             await endPoll(pollId)
         }
 
+        // =================
+        // .giveaway
+        // =================
+        if (command === "giveaway") {
+            if (!hasPermission(message.member, "giveaway")) {
+                const m = await message.reply("❌ You don't have permission!")
+                setTimeout(() => m.delete().catch(() => null), 3000)
+                return await message.delete().catch(() => null)
+            }
+            await message.delete().catch(() => null)
+            embedSessions.set(`gw_channel_${message.author.id}`, message.channel.id)
+            const triggerRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(`gw_open_modal_${message.author.id}_${message.channel.id}`).setLabel("🎉 Fill Giveaway Details").setStyle(ButtonStyle.Success)
+            )
+            const triggerMsg = await message.channel.send({ content: `<@${message.author.id}> Click to fill giveaway details!`, components: [triggerRow] })
+            setTimeout(() => triggerMsg.delete().catch(() => null), 120000)
+        }
+
+        // =================
+        // .endgiveaway
+        // =================
+        if (command === "endgiveaway") {
+            if (!hasPermission(message.member, "endgiveaway")) {
+                const m = await message.reply("❌ You don't have permission!")
+                setTimeout(() => m.delete().catch(() => null), 3000)
+                return await message.delete().catch(() => null)
+            }
+            await message.delete().catch(() => null)
+            const data = loadData()
+            const activeGiveaways = Object.entries(data.giveaways)
+                .filter(([, gw]) => !gw.ended && gw.guildId === message.guild.id)
+                .sort(([, a], [, b]) => a.endTime - b.endTime)
+
+            if (activeGiveaways.length === 0) {
+                const m = await message.channel.send("❌ No active giveaways found!")
+                return setTimeout(() => m.delete().catch(() => null), 3000)
+            }
+
+            const [giveawayId] = activeGiveaways[0]
+            await endGiveaway(giveawayId)
+            const m = await message.channel.send("✅ Giveaway ended early!")
+            setTimeout(() => m.delete().catch(() => null), 3000)
+        }
+
+        // =================
+        // .rerolllastgiveaway
+        // =================
+        if (command === "rerolllastgiveaway") {
+            if (!hasPermission(message.member, "rerolllastgiveaway")) {
+                const m = await message.reply("❌ You don't have permission!")
+                setTimeout(() => m.delete().catch(() => null), 3000)
+                return await message.delete().catch(() => null)
+            }
+            await message.delete().catch(() => null)
+            const data = loadData()
+            const ended = Object.entries(data.giveaways)
+                .filter(([, gw]) => gw.ended && gw.guildId === message.guild.id)
+                .sort(([, a], [, b]) => b.endTime - a.endTime)
+            if (ended.length === 0) {
+                const m = await message.channel.send("❌ No ended giveaways!")
+                return setTimeout(() => m.delete().catch(() => null), 3000)
+            }
+            const [lastId, lastGw] = ended[0]
+            const entries = lastGw.entries || []
+            if (entries.length === 0) {
+                const m = await message.channel.send("❌ No entries!")
+                return setTimeout(() => m.delete().catch(() => null), 3000)
+            }
+            const newWinners = [...entries].sort(() => Math.random() - 0.5).slice(0, Math.min(lastGw.winnerCount || 1, entries.length))
+            lastGw.winners = newWinners
+            data.giveaways[lastId] = lastGw
+            saveData(data)
+            const winnerText = newWinners.map(id => `<@${id}>`).join(", ")
+            await message.channel.send({ embeds: [new EmbedBuilder().setTitle("🔁 Giveaway Rerolled!").setDescription(`**Prize:** ${lastGw.prize}\n\n🏆 **New Winner(s):** ${winnerText}`).setColor("#ffd700").setTimestamp()] })
+            await message.channel.send(`🎊 Congratulations ${winnerText}! You won **${lastGw.prize}**!`)
+        }
+
+        // =================
+        // .ban
+        // =================
         if (command === "ban") {
             if (!hasPermission(message.member, "ban")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -332,13 +431,16 @@ client.on("messageCreate", async message => {
             }
             await message.delete().catch(() => null)
             const target = message.mentions.members.first() || await message.guild.members.fetch(args[0]).catch(() => null)
-            if (!target) return message.channel.send("❌ User not found! Usage: .ban @user reason")
+            if (!target) return message.channel.send("❌ User not found!")
             const reason = args.slice(1).join(" ") || "No reason provided"
             if (!target.bannable) return message.channel.send("❌ I can't ban this user!")
             await target.ban({ reason })
             await message.channel.send({ embeds: [new EmbedBuilder().setTitle("🔨 User Banned").addFields({ name: "User", value: target.user.tag, inline: true }, { name: "Moderator", value: message.author.tag, inline: true }, { name: "Reason", value: reason }).setColor("#ff0000").setTimestamp()] })
         }
 
+        // =================
+        // .unban
+        // =================
         if (command === "unban") {
             if (!hasPermission(message.member, "unban")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -352,6 +454,9 @@ client.on("messageCreate", async message => {
             await message.channel.send({ embeds: [new EmbedBuilder().setTitle("✅ User Unbanned").addFields({ name: "User ID", value: userId, inline: true }, { name: "Moderator", value: message.author.tag, inline: true }).setColor("#00ff00").setTimestamp()] })
         }
 
+        // =================
+        // .kick
+        // =================
         if (command === "kick") {
             if (!hasPermission(message.member, "kick")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -367,6 +472,9 @@ client.on("messageCreate", async message => {
             await message.channel.send({ embeds: [new EmbedBuilder().setTitle("👢 User Kicked").addFields({ name: "User", value: target.user.tag, inline: true }, { name: "Moderator", value: message.author.tag, inline: true }, { name: "Reason", value: reason }).setColor("#ff8800").setTimestamp()] })
         }
 
+        // =================
+        // .mute
+        // =================
         if (command === "mute") {
             if (!hasPermission(message.member, "mute")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -381,7 +489,6 @@ client.on("messageCreate", async message => {
             const reason = args.slice(duration ? 2 : 1).join(" ") || "No reason provided"
             const timeoutDuration = duration || 10 * 60 * 1000
             await target.timeout(timeoutDuration, reason)
-
             const data = loadData()
             if (!data.muted[message.guild.id]) data.muted[message.guild.id] = {}
             data.muted[message.guild.id][target.id] = { userId: target.id, username: target.user.tag, reason, moderator: message.author.tag, mutedAt: Date.now(), duration: timeoutDuration }
@@ -389,6 +496,9 @@ client.on("messageCreate", async message => {
             await message.channel.send({ embeds: [new EmbedBuilder().setTitle("🔇 User Muted").addFields({ name: "User", value: target.user.tag, inline: true }, { name: "Moderator", value: message.author.tag, inline: true }, { name: "Duration", value: durationStr || "10m", inline: true }, { name: "Reason", value: reason }).setColor("#ffcc00").setTimestamp()] })
         }
 
+        // =================
+        // .unmute
+        // =================
         if (command === "unmute") {
             if (!hasPermission(message.member, "unmute")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -405,6 +515,9 @@ client.on("messageCreate", async message => {
             await message.channel.send({ embeds: [new EmbedBuilder().setTitle("🔊 User Unmuted").addFields({ name: "User", value: target.user.tag, inline: true }, { name: "Moderator", value: message.author.tag, inline: true }).setColor("#00ff00").setTimestamp()] })
         }
 
+        // =================
+        // .warn
+        // =================
         if (command === "warn") {
             if (!hasPermission(message.member, "warn")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -423,6 +536,9 @@ client.on("messageCreate", async message => {
             await message.channel.send({ embeds: [new EmbedBuilder().setTitle("⚠️ User Warned").addFields({ name: "User", value: target.user.tag, inline: true }, { name: "Moderator", value: message.author.tag, inline: true }, { name: "Total Warnings", value: `${data.warnings[message.guild.id][target.id].length}`, inline: true }, { name: "Reason", value: reason }).setColor("#ffaa00").setTimestamp()] })
         }
 
+        // =================
+        // .warnings
+        // =================
         if (command === "warnings") {
             if (!hasPermission(message.member, "warnings")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -437,6 +553,9 @@ client.on("messageCreate", async message => {
             await message.channel.send({ embeds: [new EmbedBuilder().setTitle(`⚠️ Warnings for ${target.user.tag}`).setDescription(warns.length === 0 ? "No warnings" : warns.map((w, i) => `**${i + 1}.** ${w.reason}\n> By: ${w.moderator} | ${new Date(w.date).toLocaleDateString()}`).join("\n\n")).addFields({ name: "Total", value: `${warns.length}`, inline: true }).setColor("#ffaa00").setTimestamp()] })
         }
 
+        // =================
+        // .purge
+        // =================
         if (command === "purge") {
             if (!hasPermission(message.member, "purge")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -451,8 +570,11 @@ client.on("messageCreate", async message => {
             setTimeout(() => m.delete().catch(() => null), 3000)
         }
 
+        // =================
+        // .showbanned
+        // =================
         if (command === "showbanned") {
-            if (message.author.id !== message.guild.ownerId && !message.member.permissions.has(PermissionFlagsBits.BanMembers)) {
+            if (!hasPermission(message.member, "showbanned")) {
                 const m = await message.reply("❌ You don't have permission!")
                 setTimeout(() => m.delete().catch(() => null), 3000)
                 return await message.delete().catch(() => null)
@@ -466,8 +588,11 @@ client.on("messageCreate", async message => {
             }
         }
 
+        // =================
+        // .showwarned
+        // =================
         if (command === "showwarned") {
-            if (message.author.id !== message.guild.ownerId && !message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+            if (!hasPermission(message.member, "showwarned")) {
                 const m = await message.reply("❌ You don't have permission!")
                 setTimeout(() => m.delete().catch(() => null), 3000)
                 return await message.delete().catch(() => null)
@@ -482,8 +607,11 @@ client.on("messageCreate", async message => {
             }
         }
 
+        // =================
+        // .showmuted
+        // =================
         if (command === "showmuted") {
-            if (message.author.id !== message.guild.ownerId && !message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+            if (!hasPermission(message.member, "showmuted")) {
                 const m = await message.reply("❌ You don't have permission!")
                 setTimeout(() => m.delete().catch(() => null), 3000)
                 return await message.delete().catch(() => null)
@@ -498,51 +626,41 @@ client.on("messageCreate", async message => {
             }
         }
 
-        if (command === "giveaway") {
-            if (!hasPermission(message.member, "giveaway")) {
+        // =================
+        // .dmmember
+        // =================
+        if (command === "dmmember") {
+            if (!hasPermission(message.member, "dmmember")) {
                 const m = await message.reply("❌ You don't have permission!")
                 setTimeout(() => m.delete().catch(() => null), 3000)
                 return await message.delete().catch(() => null)
             }
             await message.delete().catch(() => null)
-            embedSessions.set(`gw_channel_${message.author.id}`, message.channel.id)
-            const triggerRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(`gw_open_modal_${message.author.id}_${message.channel.id}`).setLabel("🎉 Fill Giveaway Details").setStyle(ButtonStyle.Success)
-            )
-            const triggerMsg = await message.channel.send({ content: `<@${message.author.id}> Click to fill giveaway details!`, components: [triggerRow] })
-            setTimeout(() => triggerMsg.delete().catch(() => null), 120000)
-        }
+            const target = message.mentions.members.first()
+            if (!target) return message.channel.send("❌ Usage: .dmmember @user message")
+            const dmMessage = args.slice(1).join(" ")
+            if (!dmMessage) return message.channel.send("❌ Please provide a message!")
 
-        if (command === "rerolllastgiveaway") {
-            if (!hasPermission(message.member, "giveaway")) {
-                const m = await message.reply("❌ You don't have permission!")
+            const dmEmbed = new EmbedBuilder()
+                .setTitle("📩 Message from Staff")
+                .setDescription(dmMessage)
+                .addFields({ name: "Server", value: message.guild.name, inline: true })
+                .setColor("#7c4dff")
+                .setTimestamp()
+
+            const sent = await target.send({ embeds: [dmEmbed] }).catch(() => null)
+            if (sent) {
+                const m = await message.channel.send(`✅ Message sent to **${target.user.tag}**!`)
                 setTimeout(() => m.delete().catch(() => null), 3000)
-                return await message.delete().catch(() => null)
+            } else {
+                const m = await message.channel.send(`❌ Couldn't send DM to **${target.user.tag}** (DMs might be closed)`)
+                setTimeout(() => m.delete().catch(() => null), 3000)
             }
-            await message.delete().catch(() => null)
-            const data = loadData()
-            const ended = Object.entries(data.giveaways)
-                .filter(([, gw]) => gw.ended && gw.guildId === message.guild.id)
-                .sort(([, a], [, b]) => b.endTime - a.endTime)
-            if (ended.length === 0) {
-                const m = await message.channel.send("❌ No ended giveaways found!")
-                return setTimeout(() => m.delete().catch(() => null), 3000)
-            }
-            const [lastId, lastGw] = ended[0]
-            const entries = lastGw.entries || []
-            if (entries.length === 0) {
-                const m = await message.channel.send("❌ No entries!")
-                return setTimeout(() => m.delete().catch(() => null), 3000)
-            }
-            const newWinners = [...entries].sort(() => Math.random() - 0.5).slice(0, Math.min(lastGw.winnerCount || 1, entries.length))
-            lastGw.winners = newWinners
-            data.giveaways[lastId] = lastGw
-            saveData(data)
-            const winnerText = newWinners.map(id => `<@${id}>`).join(", ")
-            await message.channel.send({ embeds: [new EmbedBuilder().setTitle("🔁 Giveaway Rerolled!").setDescription(`**Prize:** ${lastGw.prize}\n\n🏆 **New Winner(s):** ${winnerText}`).setColor("#ffd700").setTimestamp()] })
-            await message.channel.send(`🎊 Congratulations ${winnerText}! You won **${lastGw.prize}**!`)
         }
 
+        // =================
+        // .setupscriptpanel
+        // =================
         if (command === "setupscriptpanel") {
             if (message.author.id !== message.guild.ownerId) {
                 const m = await message.reply("❌ Only the server owner can use this!")
@@ -556,6 +674,9 @@ client.on("messageCreate", async message => {
             await showScriptPanelSettings(message.channel, message.author.id, session)
         }
 
+        // =================
+        // .setup
+        // =================
         if (command === "setup") {
             if (message.author.id !== message.guild.ownerId) {
                 const m = await message.reply("❌ Only the server owner can use this!")
@@ -564,11 +685,14 @@ client.on("messageCreate", async message => {
             }
             await message.delete().catch(() => null)
             const data = loadData()
-            const session = { userId: message.author.id, permissions: data.permissions ? { ...data.permissions } : {}, selectedCommand: null }
+            const session = { userId: message.author.id, permissions: data.permissions ? { ...data.permissions } : {}, selectedCommands: [] }
             setupSessions.set(message.author.id, session)
             await showSetupPanel(message.channel, message.author.id, session)
         }
 
+        // =================
+        // .help
+        // =================
         if (command === "help") {
             await message.delete().catch(() => null)
             const embed = new EmbedBuilder().setTitle("📜 Commands - SpectraX Bot").setDescription("Click any button for details").setColor("#7c4dff")
@@ -581,6 +705,7 @@ client.on("messageCreate", async message => {
             )
             const row2 = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId("giveaway_help_btn").setLabel(".giveaway").setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId("endgiveaway_help_btn").setLabel(".endgiveaway").setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId("reroll_help_btn").setLabel(".rerolllastgiveaway").setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId("poll_help_btn").setLabel(".poll").setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId("endpoll_help_btn").setLabel(".endpoll").setStyle(ButtonStyle.Success)
@@ -595,7 +720,8 @@ client.on("messageCreate", async message => {
             const row4 = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId("showbanned_help_btn").setLabel(".showbanned").setStyle(ButtonStyle.Secondary),
                 new ButtonBuilder().setCustomId("showwarned_help_btn").setLabel(".showwarned").setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId("showmuted_help_btn").setLabel(".showmuted").setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder().setCustomId("showmuted_help_btn").setLabel(".showmuted").setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId("dmmember_help_btn").setLabel(".dmmember").setStyle(ButtonStyle.Secondary)
             )
             message.channel.send({ embeds: [embed], components: [row1, row2, row3, row4] })
         }
@@ -651,24 +777,35 @@ async function showScriptPanelSettings(channel, userId, session) {
 }
 
 async function showSetupPanel(channel, userId, session) {
-    const commands = ["say", "embed", "embedwithbuttons", "editembed", "getscript", "giveaway", "ban", "kick", "mute", "unmute", "warn", "warnings", "purge", "poll"]
     const data = loadData()
     const embed = new EmbedBuilder()
-        .setTitle("⚙️ Permissions Setup").setDescription("Select a command to set which roles can use it.")
-        .addFields(commands.map(cmd => ({
+        .setTitle("⚙️ Permissions Setup")
+        .setDescription("**Step 1:** Select the commands you want to configure\n**Step 2:** Select the roles that can use them\n**Step 3:** Save!")
+        .addFields(ALL_COMMANDS.map(cmd => ({
             name: `.${cmd}`,
             value: data.permissions[cmd]?.length > 0 ? data.permissions[cmd].map(id => `<@&${id}>`).join(", ") : "Everyone",
             inline: true
         }))).setColor("#5865F2").setTimestamp()
-    const selectRow = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder().setCustomId(`setup_cmd_select_${userId}`).setPlaceholder("Select a command")
-            .addOptions(commands.map(cmd => ({ label: `.${cmd}`, value: cmd })))
+
+    // تقسيم الكوماندز على chunk بحد أقصى 25 في الـ select menu
+    const cmdSelectRow = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`setup_cmd_select_${userId}`)
+            .setPlaceholder("Select commands to configure (multi-select)")
+            .setMinValues(1)
+            .setMaxValues(ALL_COMMANDS.length)
+            .addOptions(ALL_COMMANDS.map(cmd => ({
+                label: `.${cmd}`,
+                value: cmd,
+                description: `Configure who can use .${cmd}`
+            })))
     )
+
     const actionRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`setup_save_${userId}`).setLabel("💾 Save & Close").setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`setup_reset_${userId}`).setLabel("🔄 Reset All").setStyle(ButtonStyle.Danger)
     )
-    return await channel.send({ embeds: [embed], components: [selectRow, actionRow], content: `🔧 <@${userId}> - Permissions Panel:` })
+    return await channel.send({ embeds: [embed], components: [cmdSelectRow, actionRow], content: `🔧 <@${userId}> - Permissions Panel:` })
 }
 
 // =================
@@ -735,8 +872,7 @@ client.on("interactionCreate", async interaction => {
                 .setTitle(`📊 ${poll.question}`)
                 .setDescription(newDesc)
                 .addFields({ name: "⏱️ Ends", value: `<t:${Math.floor(poll.endTime / 1000)}:R>`, inline: true })
-                .setColor("#5865F2")
-                .setTimestamp()
+                .setColor("#5865F2").setTimestamp()
 
             await interaction.message.edit({ embeds: [updatedEmbed] }).catch(() => null)
         }
@@ -795,9 +931,10 @@ client.on("interactionCreate", async interaction => {
             "editembed_btn": "**.editembed <ID>**\n> Edits an existing embed",
             "getscript_help_btn": "**.getscript**\n> Shows scripts panel",
             "giveaway_help_btn": "**.giveaway**\n> Creates a giveaway",
+            "endgiveaway_help_btn": "**.endgiveaway**\n> Ends the current active giveaway early",
             "reroll_help_btn": "**.rerolllastgiveaway**\n> Rerolls last giveaway",
-            "poll_help_btn": "**.poll**\n> Creates a poll with timer\n> Types: yesno or custom",
-            "endpoll_help_btn": "**.endpoll**\n> Ends active poll early (Owner only)",
+            "poll_help_btn": "**.poll**\n> Creates a poll with timer",
+            "endpoll_help_btn": "**.endpoll**\n> Ends active poll early",
             "ban_help_btn": "**.ban @user reason**\n> Bans a user",
             "kick_help_btn": "**.kick @user reason**\n> Kicks a user",
             "mute_help_btn": "**.mute @user duration reason**\n> Mutes a user",
@@ -805,7 +942,8 @@ client.on("interactionCreate", async interaction => {
             "purge_help_btn": "**.purge <1-100>**\n> Deletes messages",
             "showbanned_help_btn": "**.showbanned**\n> DMs you banned users list",
             "showwarned_help_btn": "**.showwarned**\n> DMs you warned users list",
-            "showmuted_help_btn": "**.showmuted**\n> DMs you muted users list"
+            "showmuted_help_btn": "**.showmuted**\n> DMs you muted users list",
+            "dmmember_help_btn": "**.dmmember @user message**\n> Sends a DM to a member"
         }
         if (helpMap[interaction.customId]) {
             return await interaction.reply({
@@ -873,15 +1011,21 @@ client.on("interactionCreate", async interaction => {
             await interaction.update({ content: "🔄 All permissions reset!", embeds: [], components: [] })
         }
 
-        // Setup Clear Command
-        if (interaction.customId.startsWith("setup_clear_cmd_")) {
-            const userId = interaction.customId.replace("setup_clear_cmd_", "")
+        // Setup Allow Everyone
+        if (interaction.customId.startsWith("setup_allow_everyone_")) {
+            const userId = interaction.customId.replace("setup_allow_everyone_", "")
             if (interaction.user.id !== userId) return interaction.reply({ content: "Not your menu!", ephemeral: true })
             const session = setupSessions.get(userId)
-            if (!session?.selectedCommand) return interaction.reply({ content: "Session expired.", ephemeral: true })
-            delete session.permissions[session.selectedCommand]
+            if (!session) return interaction.reply({ content: "Session expired.", ephemeral: true })
+
+            for (const cmd of session.selectedCommands) {
+                delete session.permissions[cmd]
+            }
             setupSessions.set(userId, session)
-            return await interaction.update({ content: `✅ **.${session.selectedCommand}** is now for everyone!\nPress **💾 Save & Close**!`, components: [] })
+            return await interaction.update({
+                content: `✅ Commands **${session.selectedCommands.map(c => `.${c}`).join(", ")}** are now for everyone!\nPress **💾 Save & Close**!`,
+                components: []
+            })
         }
     }
 
@@ -951,38 +1095,65 @@ client.on("interactionCreate", async interaction => {
             return await interaction.update({ content: `✅ Removed: **${removed[0].label}**`, components: [] })
         }
 
+        // Setup Command Select (Multi-select)
         if (interaction.customId.startsWith("setup_cmd_select_")) {
             const userId = interaction.customId.replace("setup_cmd_select_", "")
             if (interaction.user.id !== userId) return interaction.reply({ content: "Not your menu!", ephemeral: true })
             const session = setupSessions.get(userId)
             if (!session) return interaction.reply({ content: "Session expired.", ephemeral: true })
-            session.selectedCommand = interaction.values[0]
+
+            session.selectedCommands = interaction.values
             setupSessions.set(userId, session)
+
             const roles = interaction.guild.roles.cache
                 .filter(r => !r.managed && r.id !== interaction.guild.id)
                 .first(25).map(r => ({ label: r.name, value: r.id }))
+
             if (roles.length === 0) return interaction.reply({ content: "❌ No roles found!", ephemeral: true })
+
+            const selectedCmdsText = session.selectedCommands.map(c => `.${c}`).join(", ")
+
             const roleSelect = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder().setCustomId(`setup_role_select_${userId}`)
-                    .setPlaceholder(`Roles for .${session.selectedCommand}`)
-                    .setMinValues(1).setMaxValues(Math.min(roles.length, 25))
+                new StringSelectMenuBuilder()
+                    .setCustomId(`setup_role_select_${userId}`)
+                    .setPlaceholder(`Select roles for: ${selectedCmdsText}`)
+                    .setMinValues(1)
+                    .setMaxValues(Math.min(roles.length, 25))
                     .addOptions(roles)
             )
-            const clearRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(`setup_clear_cmd_${userId}`).setLabel("🔓 Allow Everyone").setStyle(ButtonStyle.Secondary)
+
+            const allowRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`setup_allow_everyone_${userId}`)
+                    .setLabel(`🔓 Allow Everyone for selected commands`)
+                    .setStyle(ButtonStyle.Secondary)
             )
-            return await interaction.reply({ content: `Select roles for **.${session.selectedCommand}**:`, components: [roleSelect, clearRow], ephemeral: true })
+
+            return await interaction.reply({
+                content: `Select roles for: **${selectedCmdsText}**`,
+                components: [roleSelect, allowRow],
+                ephemeral: true
+            })
         }
 
+        // Setup Role Select
         if (interaction.customId.startsWith("setup_role_select_")) {
             const userId = interaction.customId.replace("setup_role_select_", "")
             if (interaction.user.id !== userId) return interaction.reply({ content: "Not your menu!", ephemeral: true })
             const session = setupSessions.get(userId)
-            if (!session?.selectedCommand) return interaction.reply({ content: "Session expired.", ephemeral: true })
-            session.permissions[session.selectedCommand] = interaction.values
+            if (!session?.selectedCommands?.length) return interaction.reply({ content: "Session expired.", ephemeral: true })
+
+            for (const cmd of session.selectedCommands) {
+                session.permissions[cmd] = interaction.values
+            }
             setupSessions.set(userId, session)
+
             const roleNames = interaction.values.map(id => `<@&${id}>`).join(", ")
-            return await interaction.update({ content: `✅ Roles for **.${session.selectedCommand}**: ${roleNames}\nPress **💾 Save & Close**!`, components: [] })
+            const cmdNames = session.selectedCommands.map(c => `.${c}`).join(", ")
+            return await interaction.update({
+                content: `✅ Set roles for **${cmdNames}**: ${roleNames}\nPress **💾 Save & Close** in the main panel!`,
+                components: []
+            })
         }
     }
 
@@ -1045,7 +1216,7 @@ client.on("interactionCreate", async interaction => {
                 options = ["✅ Yes", "❌ No"]
             } else if (type === "custom") {
                 options = optionsRaw.split("|").map(o => o.trim()).filter(Boolean).slice(0, 5)
-                if (options.length < 2) return interaction.reply({ content: "❌ Provide at least 2 options separated by |", ephemeral: true })
+                if (options.length < 2) return interaction.reply({ content: "❌ Provide at least 2 options!", ephemeral: true })
             } else {
                 return interaction.reply({ content: "❌ Type must be 'yesno' or 'custom'", ephemeral: true })
             }
@@ -1061,37 +1232,24 @@ client.on("interactionCreate", async interaction => {
                 .setTitle(`📊 ${question}`)
                 .setDescription(desc)
                 .addFields({ name: "⏱️ Ends", value: `<t:${Math.floor(endTime / 1000)}:R>`, inline: true })
-                .setColor("#5865F2")
-                .setTimestamp()
+                .setColor("#5865F2").setTimestamp()
 
             const rows = []
             for (let i = 0; i < options.length; i += 5) {
                 rows.push(new ActionRowBuilder().addComponents(
                     options.slice(i, i + 5).map((opt, idx) =>
-                        new ButtonBuilder()
-                            .setCustomId(`poll_vote_${pollId}_${i + idx}`)
-                            .setLabel(opt)
-                            .setStyle(ButtonStyle.Primary)
+                        new ButtonBuilder().setCustomId(`poll_vote_${pollId}_${i + idx}`).setLabel(opt).setStyle(ButtonStyle.Primary)
                     )
                 ))
             }
 
             const pollMsg = await channel.send({ embeds: [pollEmbed], components: rows })
-
             const data = loadData()
             data.polls[pollId] = {
-                guildId: interaction.guild.id,
-                channelId: channel.id,
-                messageId: pollMsg.id,
-                question,
-                options,
-                votes: {},
-                endTime,
-                createdAt: Date.now(),
-                ended: false
+                guildId: interaction.guild.id, channelId: channel.id, messageId: pollMsg.id,
+                question, options, votes: {}, endTime, createdAt: Date.now(), ended: false
             }
             saveData(data)
-
             setTimeout(() => endPoll(pollId), duration)
             await interaction.reply({ content: `✅ Poll created in <#${channelId}>!`, ephemeral: true })
         }

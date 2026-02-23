@@ -72,7 +72,7 @@ const ALL_COMMANDS = [
     "say", "embed", "embedwithbuttons", "editembed", "getscript",
     "giveaway", "endgiveaway", "rerolllastgiveaway",
     "poll", "endpoll",
-    "ban", "unban", "kick", "mute", "unmute", "warn", "warnings", "clearwarnings", "purge",
+    "ban", "unban", "kick", "mute", "unmute", "warn", "clearwarnings",
     "showbanned", "showwarned", "showmuted",
     "lock", "unlock",
     "ticket", "setlog",
@@ -412,6 +412,7 @@ client.on("messageCreate", async message => {
             await message.delete().catch(() => null)
             const target = message.mentions.members.first() || await message.guild.members.fetch(args[0]).catch(() => null)
             if (!target) return message.channel.send("❌ User not found!")
+            if (target.id === message.guild.ownerId) return message.channel.send("❌ You can't do that to the server owner!")
             const reason = args.slice(1).join(" ") || "No reason provided"
             if (!target.bannable) return message.channel.send("❌ I can't ban this user!")
             await target.ban({ reason })
@@ -444,6 +445,7 @@ client.on("messageCreate", async message => {
             await message.delete().catch(() => null)
             const target = message.mentions.members.first() || await message.guild.members.fetch(args[0]).catch(() => null)
             if (!target) return message.channel.send("❌ User not found!")
+            if (target.id === message.guild.ownerId) return message.channel.send("❌ You can't do that to the server owner!")
             const reason = args.slice(1).join(" ") || "No reason provided"
             if (!target.kickable) return message.channel.send("❌ I can't kick this user!")
             await target.kick(reason)
@@ -461,6 +463,7 @@ client.on("messageCreate", async message => {
             await message.delete().catch(() => null)
             const target = message.mentions.members.first() || await message.guild.members.fetch(args[0]).catch(() => null)
             if (!target) return message.channel.send("❌ User not found!")
+            if (target.id === message.guild.ownerId) return message.channel.send("❌ You can't do that to the server owner!")
             const durationStr = args[1]
             const duration = parseDuration(durationStr)
             const reason = args.slice(duration ? 2 : 1).join(" ") || "No reason provided"
@@ -500,6 +503,7 @@ client.on("messageCreate", async message => {
             await message.delete().catch(() => null)
             const target = message.mentions.members.first() || await message.guild.members.fetch(args[0]).catch(() => null)
             if (!target) return message.channel.send("❌ User not found!")
+            if (target.id === message.guild.ownerId) return message.channel.send("❌ You can't do that to the server owner!")
             const reason = args.slice(1).join(" ") || "No reason provided"
             const data = loadData()
             if (!data.warnings[message.guild.id]) data.warnings[message.guild.id] = {}
@@ -511,19 +515,6 @@ client.on("messageCreate", async message => {
             await sendLog(message.guild, embed)
         }
 
-        if (command === "warnings") {
-            if (!hasPermission(message.member, "warnings")) {
-                const m = await message.reply("❌ You don't have permission!")
-                setTimeout(() => m.delete().catch(() => null), 3000)
-                return await message.delete().catch(() => null)
-            }
-            await message.delete().catch(() => null)
-            const target = message.mentions.members.first() || await message.guild.members.fetch(args[0]).catch(() => null)
-            if (!target) return message.channel.send("❌ User not found!")
-            const data = loadData()
-            const warns = data.warnings[message.guild.id]?.[target.id] || []
-            await message.channel.send({ embeds: [new EmbedBuilder().setTitle(`⚠️ Warnings for ${target.user.tag}`).setDescription(warns.length === 0 ? "No warnings" : warns.map((w, i) => `**${i + 1}.** ${w.reason}\n> By: ${w.moderator} | ${new Date(w.date).toLocaleDateString()}`).join("\n\n")).addFields({ name: "Total", value: `${warns.length}`, inline: true }).setColor("#ffaa00").setTimestamp()] })
-        }
 
         if (command === "clearwarnings") {
             if (!hasPermission(message.member, "clearwarnings")) {
@@ -534,6 +525,7 @@ client.on("messageCreate", async message => {
             await message.delete().catch(() => null)
             const target = message.mentions.members.first() || await message.guild.members.fetch(args[0]).catch(() => null)
             if (!target) return message.channel.send("❌ User not found!")
+            if (target.id === message.guild.ownerId) return message.channel.send("❌ You can't do that to the server owner!")
             const data = loadData()
             if (data.warnings[message.guild.id]) data.warnings[message.guild.id][target.id] = []
             saveData(data)
@@ -542,19 +534,6 @@ client.on("messageCreate", async message => {
             await sendLog(message.guild, embed)
         }
 
-        if (command === "purge") {
-            if (!hasPermission(message.member, "purge")) {
-                const m = await message.reply("❌ You don't have permission!")
-                setTimeout(() => m.delete().catch(() => null), 3000)
-                return await message.delete().catch(() => null)
-            }
-            await message.delete().catch(() => null)
-            const amount = parseInt(args[0])
-            if (isNaN(amount) || amount < 1 || amount > 100) return message.channel.send("❌ Provide a number between 1-100!")
-            const deleted = await message.channel.bulkDelete(amount, true).catch(() => null)
-            const m = await message.channel.send(`✅ Deleted **${deleted?.size || 0}** messages!`)
-            setTimeout(() => m.delete().catch(() => null), 3000)
-        }
 
         if (command === "showbanned") {
             if (!hasPermission(message.member, "showbanned")) {
@@ -671,6 +650,7 @@ client.on("messageCreate", async message => {
             await message.delete().catch(() => null)
             const target = message.mentions.members.first()
             if (!target) return message.channel.send("❌ Usage: .dmmember @user message")
+            if (target.id === message.guild.ownerId) return message.channel.send("❌ You can't do that to the server owner!")
             const dmMessage = args.slice(1).join(" ")
             if (!dmMessage) return message.channel.send("❌ Please provide a message!")
             const dmEmbed = new EmbedBuilder().setTitle("📩 Message from Staff").setDescription(dmMessage).addFields({ name: "Server", value: message.guild.name, inline: true }).setColor("#7c4dff").setTimestamp()
@@ -732,7 +712,7 @@ client.on("messageCreate", async message => {
                 new ButtonBuilder().setCustomId("kick_help_btn").setLabel(".kick").setStyle(ButtonStyle.Danger),
                 new ButtonBuilder().setCustomId("mute_help_btn").setLabel(".mute").setStyle(ButtonStyle.Danger),
                 new ButtonBuilder().setCustomId("warn_help_btn").setLabel(".warn").setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId("purge_help_btn").setLabel(".purge").setStyle(ButtonStyle.Danger)
+                new ButtonBuilder().setCustomId("clearwarnings_help_btn").setLabel(".clearwarnings").setStyle(ButtonStyle.Danger)
             )
             const row4 = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId("clearwarnings_help_btn").setLabel(".clearwarnings").setStyle(ButtonStyle.Secondary),
@@ -1053,7 +1033,7 @@ client.on("interactionCreate", async interaction => {
             "kick_help_btn": "**.kick @user reason**\n> Kicks a user",
             "mute_help_btn": "**.mute @user duration reason**\n> Mutes a user",
             "warn_help_btn": "**.warn @user reason**\n> Warns a user",
-            "purge_help_btn": "**.purge <1-100>**\n> Deletes messages",
+
             "clearwarnings_help_btn": "**.clearwarnings @user**\n> Clears all warnings for a user",
             "lock_help_btn": "**.lock**\n> Locks the current channel",
             "unlock_help_btn": "**.unlock**\n> Unlocks the current channel",

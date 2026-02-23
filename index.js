@@ -525,9 +525,6 @@ client.on("messageCreate", async message => {
             await message.channel.send({ embeds: [new EmbedBuilder().setTitle(`⚠️ Warnings for ${target.user.tag}`).setDescription(warns.length === 0 ? "No warnings" : warns.map((w, i) => `**${i + 1}.** ${w.reason}\n> By: ${w.moderator} | ${new Date(w.date).toLocaleDateString()}`).join("\n\n")).addFields({ name: "Total", value: `${warns.length}`, inline: true }).setColor("#ffaa00").setTimestamp()] })
         }
 
-        // =================
-        // .clearwarnings
-        // =================
         if (command === "clearwarnings") {
             if (!hasPermission(message.member, "clearwarnings")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -540,10 +537,7 @@ client.on("messageCreate", async message => {
             const data = loadData()
             if (data.warnings[message.guild.id]) data.warnings[message.guild.id][target.id] = []
             saveData(data)
-            const embed = new EmbedBuilder()
-                .setTitle("🗑️ Warnings Cleared")
-                .addFields({ name: "User", value: target.user.tag, inline: true }, { name: "Moderator", value: message.author.tag, inline: true })
-                .setColor("#00ff00").setTimestamp()
+            const embed = new EmbedBuilder().setTitle("🗑️ Warnings Cleared").addFields({ name: "User", value: target.user.tag, inline: true }, { name: "Moderator", value: message.author.tag, inline: true }).setColor("#00ff00").setTimestamp()
             await message.channel.send({ embeds: [embed] })
             await sendLog(message.guild, embed)
         }
@@ -609,9 +603,6 @@ client.on("messageCreate", async message => {
             }
         }
 
-        // =================
-        // .lock
-        // =================
         if (command === "lock") {
             if (!hasPermission(message.member, "lock")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -620,17 +611,11 @@ client.on("messageCreate", async message => {
             }
             await message.delete().catch(() => null)
             await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false })
-            const embed = new EmbedBuilder()
-                .setTitle("🔒 Channel Locked")
-                .setDescription(`**${message.channel.name}** has been locked by ${message.author.tag}`)
-                .setColor("#ff0000").setTimestamp()
+            const embed = new EmbedBuilder().setTitle("🔒 Channel Locked").setDescription(`**${message.channel.name}** has been locked by ${message.author.tag}`).setColor("#ff0000").setTimestamp()
             await message.channel.send({ embeds: [embed] })
             await sendLog(message.guild, embed)
         }
 
-        // =================
-        // .unlock
-        // =================
         if (command === "unlock") {
             if (!hasPermission(message.member, "unlock")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -639,17 +624,11 @@ client.on("messageCreate", async message => {
             }
             await message.delete().catch(() => null)
             await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: null })
-            const embed = new EmbedBuilder()
-                .setTitle("🔓 Channel Unlocked")
-                .setDescription(`**${message.channel.name}** has been unlocked by ${message.author.tag}`)
-                .setColor("#00ff00").setTimestamp()
+            const embed = new EmbedBuilder().setTitle("🔓 Channel Unlocked").setDescription(`**${message.channel.name}** has been unlocked by ${message.author.tag}`).setColor("#00ff00").setTimestamp()
             await message.channel.send({ embeds: [embed] })
             await sendLog(message.guild, embed)
         }
 
-        // =================
-        // .setlog
-        // =================
         if (command === "setlog") {
             if (message.author.id !== message.guild.ownerId) {
                 const m = await message.reply("❌ Only the server owner can use this!")
@@ -659,18 +638,13 @@ client.on("messageCreate", async message => {
             await message.delete().catch(() => null)
             const targetChannel = message.mentions.channels.first()
             if (!targetChannel) return message.channel.send("❌ Usage: .setlog #channel")
-
             const data = loadData()
             data.logChannels[message.guild.id] = targetChannel.id
             saveData(data)
-
             const m = await message.channel.send({ embeds: [new EmbedBuilder().setTitle("📋 Log Channel Set").setDescription(`All mod actions will be logged in <#${targetChannel.id}>`).setColor("#5865F2").setTimestamp()] })
             setTimeout(() => m.delete().catch(() => null), 5000)
         }
 
-        // =================
-        // .ticket
-        // =================
         if (command === "ticket") {
             if (!hasPermission(message.member, "ticket")) {
                 const m = await message.reply("❌ You don't have permission!")
@@ -678,17 +652,12 @@ client.on("messageCreate", async message => {
                 return await message.delete().catch(() => null)
             }
             await message.delete().catch(() => null)
-
             const embed = new EmbedBuilder()
                 .setTitle("🎫 Support Tickets")
                 .setDescription("Click the button below to open a support ticket!\nOur team will assist you as soon as possible.")
                 .setColor("#7c4dff").setTimestamp()
-
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId("ticket_create")
-                    .setLabel("🎫 Open Ticket")
-                    .setStyle(ButtonStyle.Primary)
+                new ButtonBuilder().setCustomId("ticket_create").setLabel("🎫 Open Ticket").setStyle(ButtonStyle.Primary)
             )
             await message.channel.send({ embeds: [embed], components: [row] })
         }
@@ -704,13 +673,7 @@ client.on("messageCreate", async message => {
             if (!target) return message.channel.send("❌ Usage: .dmmember @user message")
             const dmMessage = args.slice(1).join(" ")
             if (!dmMessage) return message.channel.send("❌ Please provide a message!")
-
-            const dmEmbed = new EmbedBuilder()
-                .setTitle("📩 Message from Staff")
-                .setDescription(dmMessage)
-                .addFields({ name: "Server", value: message.guild.name, inline: true })
-                .setColor("#7c4dff").setTimestamp()
-
+            const dmEmbed = new EmbedBuilder().setTitle("📩 Message from Staff").setDescription(dmMessage).addFields({ name: "Server", value: message.guild.name, inline: true }).setColor("#7c4dff").setTimestamp()
             const sent = await target.send({ embeds: [dmEmbed] }).catch(() => null)
             if (sent) {
                 const m = await message.channel.send(`✅ Message sent to **${target.user.tag}**!`)
@@ -839,8 +802,8 @@ async function showScriptPanelSettings(channel, userId, session) {
 
 async function showSetupPanel(channel, userId, session) {
     const data = loadData()
-    
-    // تقسيم الكوماندز على embedين
+
+    // تقسيم الكوماندز على embedين بسبب حد الـ 25 field
     const firstHalf = ALL_COMMANDS.slice(0, 25)
     const secondHalf = ALL_COMMANDS.slice(25)
 
@@ -853,12 +816,17 @@ async function showSetupPanel(channel, userId, session) {
             inline: true
         }))).setColor("#5865F2").setTimestamp()
 
-    const embed2 = secondHalf.length > 0 ? new EmbedBuilder()
-        .addFields(secondHalf.map(cmd => ({
-            name: `.${cmd}`,
-            value: data.permissions[cmd]?.length > 0 ? data.permissions[cmd].map(id => `<@&${id}>`).join(", ") : "Everyone",
-            inline: true
-        }))).setColor("#5865F2") : null
+    const embeds = [embed1]
+
+    if (secondHalf.length > 0) {
+        const embed2 = new EmbedBuilder()
+            .addFields(secondHalf.map(cmd => ({
+                name: `.${cmd}`,
+                value: data.permissions[cmd]?.length > 0 ? data.permissions[cmd].map(id => `<@&${id}>`).join(", ") : "Everyone",
+                inline: true
+            }))).setColor("#5865F2")
+        embeds.push(embed2)
+    }
 
     const cmdSelectRow = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
@@ -871,8 +839,6 @@ async function showSetupPanel(channel, userId, session) {
         new ButtonBuilder().setCustomId(`setup_save_${userId}`).setLabel("💾 Save & Close").setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`setup_reset_${userId}`).setLabel("🔄 Reset All").setStyle(ButtonStyle.Danger)
     )
-
-    const embeds = embed2 ? [embed1, embed2] : [embed1]
     return await channel.send({ embeds, components: [cmdSelectRow, actionRow], content: `🔧 <@${userId}> - Permissions Panel:` })
 }
 
@@ -1072,8 +1038,8 @@ client.on("interactionCreate", async interaction => {
             "clearwarnings_help_btn": "**.clearwarnings @user**\n> Clears all warnings for a user",
             "lock_help_btn": "**.lock**\n> Locks the current channel",
             "unlock_help_btn": "**.unlock**\n> Unlocks the current channel",
-            "ticket_help_btn": "**.ticket**\n> Sends the ticket panel in the channel\n> Members click to open a private ticket",
-            "setlog_help_btn": "**.setlog #channel**\n> Sets the log channel for all mod actions",
+            "ticket_help_btn": "**.ticket**\n> Sends ticket panel in channel\n> Members click to open a private ticket",
+            "setlog_help_btn": "**.setlog #channel**\n> Sets the log channel for mod actions",
             "showbanned_help_btn": "**.showbanned**\n> DMs you banned users list",
             "showwarned_help_btn": "**.showwarned**\n> DMs you warned users list",
             "showmuted_help_btn": "**.showmuted**\n> DMs you muted users list",
@@ -1238,7 +1204,7 @@ client.on("interactionCreate", async interaction => {
 
             const roleSelect = new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder().setCustomId(`setup_role_select_${userId}`)
-                    .setPlaceholder(`Select roles for: ${session.selectedCommands.map(c => `.${c}`).join(", ")}`)
+                    .setPlaceholder(`Select roles for selected commands`)
                     .setMinValues(1).setMaxValues(Math.min(roles.length, 25))
                     .addOptions(roles)
             )

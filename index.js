@@ -828,18 +828,37 @@ async function showSetupPanel(channel, userId, session) {
         embeds.push(embed2)
     }
 
-    const cmdSelectRow = new ActionRowBuilder().addComponents(
+    const firstCmds = ALL_COMMANDS.slice(0, 25)
+    const secondCmds = ALL_COMMANDS.slice(25)
+
+    const cmdSelectRow1 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`setup_cmd_select_${userId}`)
-            .setPlaceholder("Select commands to configure (multi-select)")
-            .setMinValues(1).setMaxValues(ALL_COMMANDS.length)
-            .addOptions(ALL_COMMANDS.map(cmd => ({ label: `.${cmd}`, value: cmd, description: `Configure .${cmd}` })))
+            .setPlaceholder("Select commands (1-25)")
+            .setMinValues(1).setMaxValues(firstCmds.length)
+            .addOptions(firstCmds.map(cmd => ({ label: `.${cmd}`, value: cmd, description: `Configure .${cmd}` })))
     )
+
+    const components = [cmdSelectRow1]
+
+    if (secondCmds.length > 0) {
+        const cmdSelectRow2 = new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId(`setup_cmd_select2_${userId}`)
+                .setPlaceholder("Select commands (26+)")
+                .setMinValues(1).setMaxValues(secondCmds.length)
+                .addOptions(secondCmds.map(cmd => ({ label: `.${cmd}`, value: cmd, description: `Configure .${cmd}` })))
+        )
+        components.push(cmdSelectRow2)
+    }
+
     const actionRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`setup_save_${userId}`).setLabel("💾 Save & Close").setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`setup_reset_${userId}`).setLabel("🔄 Reset All").setStyle(ButtonStyle.Danger)
     )
-    return await channel.send({ embeds, components: [cmdSelectRow, actionRow], content: `🔧 <@${userId}> - Permissions Panel:` })
+    components.push(actionRow)
+
+    return await channel.send({ embeds, components, content: `🔧 <@${userId}> - Permissions Panel:` })
 }
 
 // =================
@@ -1189,8 +1208,8 @@ client.on("interactionCreate", async interaction => {
             return await interaction.update({ content: `✅ Removed: **${removed[0].label}**`, components: [] })
         }
 
-        if (interaction.customId.startsWith("setup_cmd_select_")) {
-            const userId = interaction.customId.replace("setup_cmd_select_", "")
+        if (interaction.customId.startsWith("setup_cmd_select_") || interaction.customId.startsWith("setup_cmd_select2_")) {
+            const userId = interaction.customId.replace("setup_cmd_select2_", "").replace("setup_cmd_select_", "")
             if (interaction.user.id !== userId) return interaction.reply({ content: "Not your menu!", ephemeral: true })
             const session = setupSessions.get(userId)
             if (!session) return interaction.reply({ content: "Session expired.", ephemeral: true })
